@@ -1,7 +1,6 @@
 (ns marky.generate
   (:require [cbdrawer.view :as cbv]
-            [cbdrawer.client :as cb]
-            [marky.collect :as collect]))
+            [cbdrawer.client :as cb]))
 
 (defn pick [wset]
   (when-not (empty? wset)
@@ -24,15 +23,13 @@
     (or (last (:key selected))
         (recur viewuri nil))))
 
-(defn generate-text [length]
-  (let [cfg (collect/get-configuration)
-        fact (cb/factory (:bucket cfg) (:pass cfg) (:cburl cfg))
+(defn generate-text [cfg length]
+  (let [fact (cb/factory (:bucket cfg) (:pass cfg) (:cburl cfg))
         capis (cb/capi-bases fact)
         viewuri (cbv/view-url capis "marky" "marky")]
-    (loop [i length
-           w nil]
-      (let [word (next-word viewuri w)]
-        (print (str word " "))
-        (when (<= 0 i) (recur (- i 1) word))))))
+    (with-out-str (loop [i length
+                         w nil]
+                    (let [word (next-word viewuri w)]
+                      (print (str word " "))
+                      (when (<= 0 i) (recur (- i (count w)) word)))))))
 
-(defn -main [] (generate-text 50))

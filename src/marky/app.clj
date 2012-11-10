@@ -1,4 +1,4 @@
-(ns marky.collect
+(ns marky.app
   (:import [javax.xml.transform.stream StreamSource]
            [org.jsoup Jsoup])
   (:require [overtone.at-at :as at-]
@@ -9,7 +9,10 @@
             [cbdrawer.client :as cb]
             [cbdrawer.view :as cbv]
             [cbdrawer.transcoders :as xcoders]
-            [clj-http.client :as http]))
+            [clj-http.client :as http]
+            [twitter.oauth :as tw-oauth]
+            [twitter.api.restful :as tw-rest]
+            [marky.generate :as gen]))
 
 ; Collected item
 ; {:body "body text" :item-id "item id" :source-id "sourceid"}
@@ -36,13 +39,12 @@
   (let [sourceid (str "rss=" url)
         parsed (xml/parse (StreamSource. url))
         entries (filter #(= :entry (:tag %)) (tree-seq :content :content parsed))]
-    (map (fn [entry]
+    (for [entry entries]
            {:source-id sourceid
             :item-id (str sourceid ",title=" 
                           (cb-safe (xml-text (first (filter #(= :title (:tag %)) (:content entry))))))
             :body (.text (Jsoup/parse
-                           (xml-text (first (filter #(= :content (:tag %)) (:content entry))))))})
-         entries)))
+                           (xml-text (first (filter #(= :content (:tag %)) (:content entry))))))})))
 
 (def twitter-status-url "http://api.twitter.com/1/statuses/user_timeline.json")
 
@@ -55,18 +57,34 @@
        :itemid (str sourceid ",id=" (:id_str tweet))
        :body (:text tweet)})))
 
-(def fetchfns
-  {:rss (fn [{:keys [url]}] (fetch-rss url))
-   :twitter (fn [{:keys [user]}] (fetch-twitter user))})
+(defn send-tweet [cfg]
+  (let [creds (apply tw-oauth/make-oauth-creds ((juxt :app-key
+                                                      :app-secret
+                                                      :user-token
+                                                      :user-secret)
+                                                  (:twitter cfg)))
+        txt (subs (gen/generate-text cfg 140) 0 (min 140 (+ 40 (rand-int 140))))
+        tweet (subs txt 0 (.lastIndexOf txt " "))]
+    (println "Tweeting:" tweet)
+    (tw-rest/update-status :oauth-creds creds :params {:status tweet})))
 
-(defn job-exec-fn [cbc job]
+(defn fetchwrap [fetchjobfn & parmkeys]
+  (fn [job]
+    (let [items (apply fetchjobfn ((apply juxt parmkeys) job))]
+      (println "\tFetched. Inserting into Couchbase.")
+      (doseq [item items]
+        (cb/force! (:couchclient job) (:item-id item) item)))))
+
+(def jobfns
+  {:rss (fetchwrap fetch-rss :feed)
+   :twitter (fetchwrap fetch-twitter :user)
+   :send-tweet (fn [{:keys [config]}] (send-tweet config))})
+
+(defn job-exec-fn [job]
   (fn []
-    (println "Executing:" (pr-str job))
-    (if-let [jobfn (fetchfns (:type job))]
-      (let [items (jobfn job)]
-        (println "\tFetched, inserting into Couchbase.")
-        (doseq [item items]
-          (cb/force! cbc (:item-id item) item)))
+    (println "Executing:" (pr-str (dissoc job :config :couchclient)))
+    (if-let [jobfn (jobfns (:type job))]
+      (jobfn job)
       (println ".. don't know how to do that!"))))
 
 (defn install-design-doc [fact]
@@ -83,5 +101,5 @@
         cbc (cb/client cbfactory)]
     (install-design-doc cbfactory)
     (doseq [{:keys [period] :as job} (:jobs cfg)]
-      (at-/every (* 1000 period) (job-exec-fn cbc job) atpool :initial-delay 0))))
+      (at-/every (* 1000 period) (job-exec-fn (merge job {:config cfg :couchclient cbc})) atpool :initial-delay (:after job 0)))))
 

@@ -54,7 +54,7 @@
         not-replies (filter #(not (:in_reply_to_screen_name %)) tweets)]
     (for [tweet not-replies]
       {:source-id sourceid
-       :itemid (str sourceid ",id=" (:id_str tweet))
+       :item-id (str sourceid ",id=" (:id_str tweet))
        :body (:text tweet)})))
 
 (defn send-tweet [cfg]
@@ -68,15 +68,22 @@
     (println "Tweeting:" tweet)
     (tw-rest/update-status :oauth-creds creds :params {:status tweet})))
 
+(defn now-seconds []
+  (long (/ (.getTime (java.util.Date.)) 1000)))
+
 (defn fetchwrap [fetchjobfn & parmkeys]
   (fn [job]
     (let [items (apply fetchjobfn ((apply juxt parmkeys) job))]
       (println "\tFetched. Inserting into Couchbase.")
       (doseq [item items]
-        (cb/force! (:couchclient job) (:item-id item) item)))))
+        (println "\tItem:" (pr-str item))
+        (cb/force! (:couchclient job) (:item-id item) item
+                   (if-let [ttl-days (:ttl job)]
+                     (+ (now-seconds) (* 86400 ttl-days))
+                     0))))))
 
 (def jobfns
-  {:rss (fetchwrap fetch-rss :feed)
+  {:rss (fetchwrap fetch-rss :url)
    :twitter (fetchwrap fetch-twitter :user)
    :send-tweet (fn [{:keys [config]}] (send-tweet config))})
 
@@ -101,5 +108,7 @@
         cbc (cb/client cbfactory)]
     (install-design-doc cbfactory)
     (doseq [{:keys [period] :as job} (:jobs cfg)]
-      (at-/every (* 1000 period) (job-exec-fn (merge job {:config cfg :couchclient cbc})) atpool :initial-delay (:after job 0)))))
+      (at-/every (* 1000 period)
+                 (job-exec-fn (merge job {:config cfg :couchclient cbc})) atpool
+                 :initial-delay (* 1000 (:after job 0))))))
 

@@ -18,7 +18,8 @@
                                  {:startkey start
                                   :endkey end
                                   :reduce true
-                                  :group_level 2})
+                                  :group_level 2
+                                  :stale false})
         selected (pick candidates)]
     (or (last (:key selected))
         (recur viewuri nil))))

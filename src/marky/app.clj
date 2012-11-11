@@ -1,4 +1,5 @@
 (ns marky.app
+  (:gen-class)
   (:import [javax.xml.transform.stream StreamSource]
            [org.jsoup Jsoup])
   (:require [overtone.at-at :as at-]

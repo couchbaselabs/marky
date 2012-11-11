@@ -3,6 +3,7 @@
   :url "http://example.com/FIXME"
   :license {:name "WTFPL"
             :url "http://sam.zoy.org/wtfpl/"}
+  :main marky.app
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [org.clojure/data.xml "0.0.6"]
                  [overtone/at-at "1.0.0"]

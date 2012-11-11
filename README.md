@@ -24,3 +24,7 @@ Run the bot process
 
     $ lein run -m marky.app
 
+or with the standalone JAR (see downloads)
+
+    $ java -jar marky-version-standalone.jar
+

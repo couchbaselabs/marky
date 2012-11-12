@@ -25,7 +25,7 @@
    :cburl "http://localhost:8091/"
    :jobs
    [{:type :twitter :user "damienkatz" :period 3600}
-    {:type :rss :url "http://damienkatz.net/rss.php" :period 86400}]})
+    {:type :atom :url "http://damienkatz.net/rss.php" :period 86400}]})
 
 (defn get-configuration []
   (or (try (read-string (slurp "marky-config.clj"))) default-configuration))
@@ -34,8 +34,8 @@
   "The Couchbase Java SDK doesn't like some characters..."
   [s] (st/escape s {\space "_" \newline "_" \return "_"}))
 
-(defn fetch-rss [url]
-  (let [sourceid (str "rss=" url)
+(defn fetch-atom [url]
+  (let [sourceid (str "feed=" url)
         parsed (zip/xml-zip (xml/parse url))
         entries (zip-xml/xml-> parsed :entry)]
     (for [entry entries]
@@ -80,7 +80,7 @@
                      0))))))
 
 (def jobfns
-  {:rss (fetchwrap fetch-rss :url)
+  {:atom (fetchwrap fetch-atom :url)
    :twitter (fetchwrap fetch-twitter :user)
    :send-tweet (fn [{:keys [config]}] (send-tweet config))})
 

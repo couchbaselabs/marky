@@ -17,7 +17,7 @@ Sample:
   {:type :twitter :user "damienkatz" :period 3600 :ttl 60}
   {:type :twitter :user "apage43" :period 3600 :ttl 60}
   {:type :send-tweet :period 3600 :after 600}
-  {:type :rss :url "http://damienkatz.net/rss.php" :period 86400 :ttl 60}]}
+  {:type :atom :url "http://damienkatz.net/rss.php" :period 86400 :ttl 60}]}
 ```
 
 Run the bot process

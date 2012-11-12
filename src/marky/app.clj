@@ -1,11 +1,12 @@
 (ns marky.app
   (:gen-class)
-  (:import [javax.xml.transform.stream StreamSource]
-           [org.jsoup Jsoup])
+  (:import [org.jsoup Jsoup])
   (:require [overtone.at-at :as at-]
             [clojure.string :as st]
             [clojure.java.io :as io]
-            [clojure.data.xml :as xml]
+            [clojure.xml :as xml]
+            [clojure.zip :as zip]
+            [clojure.data.zip.xml :as zip-xml]
             [cheshire.core :as json]
             [cbdrawer.client :as cb]
             [cbdrawer.view :as cbv]
@@ -33,19 +34,14 @@
   "The Couchbase Java SDK doesn't like some characters..."
   [s] (st/escape s {\space "_" \newline "_" \return "_"}))
 
-(defn xml-text [el]
-  (st/join " " (filter string? (tree-seq :content :content el))))
-
 (defn fetch-rss [url]
   (let [sourceid (str "rss=" url)
-        parsed (xml/parse (StreamSource. url))
-        entries (filter #(= :entry (:tag %)) (tree-seq :content :content parsed))]
+        parsed (zip/xml-zip (xml/parse url))
+        entries (zip-xml/xml-> parsed :entry)]
     (for [entry entries]
-           {:source-id sourceid
-            :item-id (str sourceid ",title=" 
-                          (cb-safe (xml-text (first (filter #(= :title (:tag %)) (:content entry))))))
-            :body (.text (Jsoup/parse
-                           (xml-text (first (filter #(= :content (:tag %)) (:content entry))))))})))
+      {:source-id sourceid
+       :item-id (cb-safe (str sourceid ",title="(zip-xml/text (zip-xml/xml1-> entry :title))))
+       :body (.text (Jsoup/parse (zip-xml/text (zip-xml/xml1-> entry :content))))})))
 
 (def twitter-status-url "http://api.twitter.com/1/statuses/user_timeline.json")
 

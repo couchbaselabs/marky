@@ -5,7 +5,7 @@
             :url "http://sam.zoy.org/wtfpl/"}
   :main marky.app
   :dependencies [[org.clojure/clojure "1.4.0"]
-                 [org.clojure/data.xml "0.0.6"]
+                 [org.clojure/data.zip "0.1.1"]
                  [overtone/at-at "1.0.0"]
                  [twitter-api "0.6.13"]
                  [crouton "0.1.1"]

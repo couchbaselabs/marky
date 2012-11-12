@@ -48,7 +48,7 @@
 (defn fetch-twitter [user]
   (let [sourceid (str "twitter=" user)
         tweets (:body (http/get twitter-status-url {:as :json :query-params {:screen_name user}}))
-        not-replies (filter #(not (:in_reply_to_screen_name %)) tweets)]
+        not-replies (remove :in_reply_to_screen_name tweets)]
     (for [tweet not-replies]
       {:source-id sourceid
        :item-id (str sourceid ",id=" (:id_str tweet))

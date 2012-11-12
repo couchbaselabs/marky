@@ -3,8 +3,8 @@
             [cbdrawer.client :as cb]))
 
 (defn pick [wset]
-  (when-not (empty? wset)
-    (let [tot (reduce + (map :value wset))]
+  (when (seq wset)
+    (let [tot (apply + (map :value wset))]
       (loop [i (rand tot)
              [{weight :value :as item} & more] (seq wset)]
         (if (>= weight i)
